@@ -1,0 +1,104 @@
+generator client {
+    provider = "prisma-client-js"
+}
+
+datasource db {
+    provider = "mysql"
+    url      = env("MYSQL_URL")
+}
+
+model Client {
+    id           Int      @id @default(autoincrement())
+    companyName  String   @map("company_name") @db.VarChar(255)
+    contactEmail String   @unique @map("contact_email") @db.VarChar(255)
+    createdAt    DateTime @default(now()) @map("created_at")
+    updatedAt    DateTime @updatedAt @map("updated_at")
+
+    projects Project[]
+    User     User[]
+
+    @@map("clients")
+}
+
+model Project {
+    id             Int           @id @default(autoincrement())
+    clientId       Int           @map("client_id")
+    country        String        @db.VarChar(100)
+    servicesNeeded Json          @map("services_needed")
+    budget         Decimal       @db.Decimal(15, 2)
+    status         ProjectStatus @default(ACTIVE)
+    createdAt      DateTime      @default(now()) @map("created_at")
+    updatedAt      DateTime      @updatedAt @map("updated_at")
+
+    client  Client  @relation(fields: [clientId], references: [id], onDelete: Cascade)
+    matches Match[]
+
+    @@index([clientId])
+    @@index([status])
+    @@index([country])
+    @@map("projects")
+}
+
+model Vendor {
+    id                 Int      @id @default(autoincrement())
+    name               String   @db.VarChar(255)
+    countriesSupported Json     @map("countries_supported")
+    servicesOffered    Json     @map("services_offered")
+    rating             Decimal  @db.Decimal(3, 2)
+    responseSlaHours   Int      @map("response_sla_hours")
+    createdAt          DateTime @default(now()) @map("created_at")
+    updatedAt          DateTime @updatedAt @map("updated_at")
+
+    matches Match[]
+
+    @@index([rating])
+    @@map("vendors")
+}
+
+model Match {
+    id        Int      @id @default(autoincrement())
+    projectId Int      @map("project_id")
+    vendorId  Int      @map("vendor_id")
+    score     Decimal  @db.Decimal(5, 2)
+    createdAt DateTime @default(now()) @map("created_at")
+    updatedAt DateTime @updatedAt @map("updated_at")
+
+    project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+    vendor  Vendor  @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+
+    @@unique([projectId, vendorId])
+    @@index([projectId])
+    @@index([vendorId])
+    @@index([score])
+    @@index([createdAt])
+    @@map("matches")
+}
+
+model User {
+    id        Int      @id @default(autoincrement())
+    email     String   @unique @db.VarChar(255)
+    password  String   @db.VarChar(255)
+    role      UserRole @default(CLIENT)
+    isActive  Boolean  @default(true) @map("is_active") // Alternative is soft deleted column
+    createdAt DateTime @default(now()) @map("created_at")
+    updatedAt DateTime @updatedAt @map("updated_at")
+
+    client   Client? @relation(fields: [clientId], references: [id], onDelete: SetNull)
+    clientId Int?    @map("client_id")
+
+    @@index([email])
+    @@index([role])
+    @@map("users")
+}
+
+enum ProjectStatus {
+    ACTIVE
+    COMPLETED
+    PAUSED
+    CANCELLED
+}
+
+enum UserRole {
+    CLIENT
+    ADMIN
+}
